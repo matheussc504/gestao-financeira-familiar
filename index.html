@@ -1,0 +1,917 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Gestão Financeira - Enterprise</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/3.9.1/chart.min.js"></script>
+    <!-- Bibliotecas para PDF Nativo Padrão Empresarial -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.31/jspdf.plugin.autotable.min.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
+        :root { --primary: #4f46e5; --bg: #f8fafc; }
+        body { font-family: 'Inter', sans-serif; background-color: var(--bg); color: #334155; }
+        
+        .theme-bg { background-color: var(--primary) !important; }
+        .theme-text { color: var(--primary) !important; }
+        .theme-border { border-color: var(--primary) !important; }
+        
+        .glass-card { background: white; border-radius: 12px; border: 1px solid #e2e8f0; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05); }
+        .nav-link { color: #64748b; font-weight: 600; padding: 0.5rem 1rem; border-radius: 8px; transition: all 0.2s; }
+        .nav-link:hover { color: #0f172a; background-color: #f1f5f9; }
+        .nav-link.active { color: var(--primary); background-color: #e0e7ff; }
+        
+        .modal-overlay { background-color: rgba(15, 23, 42, 0.6); backdrop-filter: blur(4px); }
+        .modal-content { animation: modalSlideIn 0.3s ease-out forwards; }
+        @keyframes modalSlideIn { from { opacity: 0; transform: translateY(-20px); } to { opacity: 1; transform: translateY(0); } }
+
+        ::-webkit-scrollbar { width: 6px; height: 6px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 10px; }
+        
+        input, select { transition: border-color 0.2s; }
+        input:focus, select:focus { border-color: var(--primary); outline: none; box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.1); }
+
+        /* Estilo para os selects de filtro da tabela */
+        .filter-select {
+            appearance: none;
+            background-image: url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3e%3cpolyline points='6 9 12 15 18 9'%3e%3c/polyline%3e%3c/svg%3e");
+            background-repeat: no-repeat;
+            background-position: right 0.5rem center;
+            background-size: 1em;
+            padding-right: 2rem;
+        }
+    </style>
+</head>
+<body class="p-0 m-0 min-h-screen flex flex-col">
+
+    <!-- TELA DE LOGIN -->
+    <div id="view-login" class="min-h-screen flex items-center justify-center p-4 z-50 absolute inset-0 bg-[var(--bg)]">
+        <div class="glass-card w-full max-w-md p-8 shadow-2xl flex flex-col items-center">
+            <div class="theme-bg text-white w-14 h-14 rounded-2xl flex items-center justify-center shadow-lg mb-5">
+                <i class="fa-solid fa-lock text-2xl"></i>
+            </div>
+            <h1 class="text-2xl font-bold text-gray-800 mb-1">Acesso Restrito</h1>
+            <p class="text-sm text-gray-500 mb-8 text-center">Faça login para acessar o sistema financeiro.</p>
+            
+            <form id="formLogin" class="w-full space-y-4" onsubmit="realizarLogin(event)">
+                <div id="loginError" class="hidden bg-red-50 text-red-600 text-xs font-bold p-3 rounded-lg border border-red-200 text-center">
+                    Usuário ou senha incorretos!
+                </div>
+                <div>
+                    <label class="block text-xs font-semibold text-gray-600 mb-1">Usuário de Acesso</label>
+                    <input type="text" id="loginUser" required class="w-full border border-gray-300 rounded-lg p-3 text-sm bg-gray-50 focus:border-indigo-500 transition-colors" placeholder="Ex: admin">
+                </div>
+                <div>
+                    <label class="block text-xs font-semibold text-gray-600 mb-1">Senha</label>
+                    <input type="password" id="loginPass" required class="w-full border border-gray-300 rounded-lg p-3 text-sm bg-gray-50 focus:border-indigo-500 transition-colors" placeholder="••••••••">
+                </div>
+                <button type="submit" class="w-full theme-bg text-white py-3 rounded-lg text-sm font-bold shadow-md hover:opacity-90 transition-opacity mt-4 flex items-center justify-center gap-2">
+                    Entrar no Sistema <i class="fa-solid fa-arrow-right-to-bracket"></i>
+                </button>
+            </form>
+            
+            <div class="mt-8 p-3 bg-indigo-50 border border-indigo-100 rounded-lg w-full text-center">
+                <p class="text-[11px] text-indigo-800 leading-relaxed">
+                    <i class="fa-solid fa-circle-info mr-1"></i><strong>PRIMEIRO ACESSO:</strong><br>
+                    Usuário: <strong>admin</strong> &nbsp;|&nbsp; Senha: <strong>123</strong><br>
+                    <span class="text-indigo-600 mt-1 block">(Altere sua senha nas configurações após entrar)</span>
+                </p>
+            </div>
+        </div>
+    </div>
+
+    <!-- SISTEMA PRINCIPAL (Oculto até o Login) -->
+    <div id="view-main-app" class="hidden flex-col min-h-screen w-full">
+        <!-- TOP NAVBAR -->
+        <header class="bg-white border-b border-gray-200 sticky top-0 z-40">
+            <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+                <div class="flex justify-between items-center h-16">
+                    <div class="flex items-center gap-3">
+                        <div class="theme-bg text-white w-8 h-8 rounded-lg flex items-center justify-center shadow-md">
+                            <i class="fa-solid fa-wallet"></i>
+                        </div>
+                        <span class="font-bold text-lg tracking-tight text-gray-900 hidden sm:block">Financeiro</span>
+                    </div>
+                    
+                    <nav class="hidden md:flex space-x-2">
+                        <button onclick="switchTab('dashboard')" id="nav-dashboard" class="nav-link active">Dashboard</button>
+                        <button onclick="switchTab('lancamentos')" id="nav-lancamentos" class="nav-link">Lançamentos</button>
+                    </nav>
+
+                    <div class="flex items-center gap-2 sm:gap-4">
+                        <button onclick="openModal('modalLancamento')" class="theme-bg text-white px-3 sm:px-4 py-2 rounded-lg font-semibold text-sm shadow-sm hover:opacity-90 transition-opacity flex items-center gap-2">
+                            <i class="fa-solid fa-plus"></i> <span class="hidden sm:inline">Lançamento</span>
+                        </button>
+                        <div class="h-6 w-px bg-gray-200 hidden sm:block"></div>
+                        <button onclick="exportarRelatorioPDF()" class="text-gray-500 hover:text-indigo-600 p-2 rounded-lg transition-colors" title="Exportar PDF Oficial">
+                            <i class="fa-solid fa-file-pdf text-lg"></i>
+                        </button>
+                        <button onclick="openModal('modalConfig')" class="text-gray-500 hover:text-indigo-600 p-2 rounded-lg transition-colors" title="Configurações">
+                            <i class="fa-solid fa-gear text-lg"></i>
+                        </button>
+                        <!-- Botão de Sair -->
+                        <button onclick="realizarLogout()" class="text-rose-500 hover:text-rose-700 p-2 rounded-lg transition-colors" title="Sair do Sistema">
+                            <i class="fa-solid fa-power-off text-lg"></i>
+                        </button>
+                    </div>
+                </div>
+                <div class="md:hidden flex space-x-2 pb-3 pt-1 border-t mt-2">
+                    <button onclick="switchTab('dashboard')" id="nav-mobile-dashboard" class="nav-link active flex-1 text-center text-xs">Dashboard</button>
+                    <button onclick="switchTab('lancamentos')" id="nav-mobile-lancamentos" class="nav-link flex-1 text-center text-xs">Lançamentos</button>
+                </div>
+            </div>
+        </header>
+
+        <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 w-full flex-1">
+            <!-- DASHBOARD -->
+            <div id="view-dashboard" class="space-y-6">
+                
+                <!-- Controle de Mês do Dashboard -->
+                <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-2">
+                    <h2 class="text-xl font-bold text-gray-800">Visão Geral</h2>
+                    <div class="flex items-center gap-3 bg-white p-2 rounded-lg border border-gray-200 shadow-sm">
+                        <i class="fa-regular fa-calendar text-gray-400 pl-1"></i>
+                        <span class="text-sm font-semibold text-gray-600">Referência:</span>
+                        <input type="month" id="filtroMesDash" onchange="renderDashboard()" class="border-none bg-transparent text-sm font-bold text-indigo-600 focus:ring-0 cursor-pointer">
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                    <div class="glass-card p-5 relative overflow-hidden">
+                        <div class="absolute right-0 top-0 h-full w-1 theme-bg"></div>
+                        <p class="text-xs text-gray-500 font-semibold uppercase mb-1">Saldo Atual Disponível</p>
+                        <h2 id="dash-saldo" class="text-2xl font-bold text-gray-900">R$ 0,00</h2>
+                        <p class="text-[10px] text-gray-400 mt-2 font-medium"><i class="fa-solid fa-circle-info"></i> Global até a data de hoje</p>
+                    </div>
+                    <div class="glass-card p-5 relative overflow-hidden">
+                        <div class="absolute right-0 top-0 h-full w-1 bg-green-500"></div>
+                        <p class="text-xs text-gray-500 font-semibold uppercase mb-1">Receitas <span class="label-mes-dash">(Mês Atual)</span></p>
+                        <h2 id="dash-receitas" class="text-2xl font-bold text-green-600">R$ 0,00</h2>
+                    </div>
+                    <div class="glass-card p-5 relative overflow-hidden">
+                        <div class="absolute right-0 top-0 h-full w-1 bg-rose-500"></div>
+                        <p class="text-xs text-gray-500 font-semibold uppercase mb-1">Despesas <span class="label-mes-dash">(Mês Atual)</span></p>
+                        <h2 id="dash-despesas" class="text-2xl font-bold text-rose-600">R$ 0,00</h2>
+                    </div>
+                    <div class="glass-card p-5 relative overflow-hidden bg-gray-50">
+                        <div class="absolute right-0 top-0 h-full w-1 bg-orange-400"></div>
+                        <p class="text-xs text-gray-500 font-semibold uppercase mb-1">Faturas/Dívidas Futuras</p>
+                        <h2 id="dash-futuro" class="text-2xl font-bold text-orange-500">R$ 0,00</h2>
+                        <p class="text-[10px] text-gray-400 mt-2 font-medium">Global: Parcelas e contas a vencer</p>
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                    <div class="glass-card p-6 lg:col-span-2">
+                        <h3 class="text-sm font-bold text-gray-800 mb-4 border-b border-gray-100 pb-2">Despesas por Categoria <span class="label-mes-dash text-indigo-600 font-normal"></span></h3>
+                        <div class="h-64 w-full"><canvas id="chartCategorias"></canvas></div>
+                    </div>
+                    <div class="glass-card p-0 overflow-hidden flex flex-col">
+                        <h3 class="text-sm font-bold text-gray-800 p-6 pb-4 border-b border-gray-100">Gastos por Pessoa <span class="label-mes-dash text-indigo-600 font-normal"></span></h3>
+                        <div class="flex-1 overflow-y-auto p-6 pt-2 space-y-4" id="dash-users"></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- LANÇAMENTOS -->
+            <div id="view-lancamentos" class="hidden space-y-6">
+                <div class="glass-card p-0 overflow-hidden">
+                    <div class="p-6 border-b border-gray-100 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 bg-gray-50/50">
+                        <div>
+                            <h3 class="text-lg font-bold text-gray-800">Histórico de Transações</h3>
+                            <p class="text-xs text-gray-500 mt-1" id="historico-desc">Todas as movimentações registradas</p>
+                        </div>
+                        <div class="flex items-center gap-2 w-full sm:w-auto">
+                            <div class="relative w-full sm:w-64">
+                                <i class="fa-solid fa-magnifying-glass absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-sm"></i>
+                                <input type="text" id="filtroBusca" oninput="renderTabela()" placeholder="Busca geral (descrição, etc)..." class="w-full pl-9 pr-4 py-2 text-sm border border-gray-200 rounded-lg bg-white focus:border-indigo-500">
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="overflow-x-auto">
+                        <table class="w-full text-left border-collapse min-w-[800px]">
+                            <thead>
+                                <tr class="bg-gray-50 border-b border-gray-200 text-xs font-semibold text-gray-500 uppercase tracking-wider">
+                                    <th class="px-6 py-3 w-40">Data (Mês)</th>
+                                    <th class="px-6 py-3 w-40">Membro</th>
+                                    <th class="px-6 py-3">Descrição & Categoria</th>
+                                    <th class="px-6 py-3 text-right w-40">Valor / Tipo</th>
+                                    <th class="px-6 py-3 text-center w-20">Ações</th>
+                                </tr>
+                                <!-- Linha de Filtros por Coluna -->
+                                <tr class="bg-gray-50/50 border-b border-gray-200 text-xs shadow-inner">
+                                    <th class="px-3 py-2">
+                                        <input type="month" id="filterDataCol" onchange="renderTabela()" class="w-full border border-gray-200 rounded p-1.5 text-xs text-gray-600 focus:border-indigo-400">
+                                    </th>
+                                    <th class="px-3 py-2">
+                                        <select id="filterMembroCol" onchange="renderTabela()" class="w-full border border-gray-200 rounded p-1.5 text-xs text-gray-600 filter-select focus:border-indigo-400">
+                                            <option value="">Todos os Membros</option>
+                                        </select>
+                                    </th>
+                                    <th class="px-3 py-2">
+                                        <select id="filterCategoriaCol" onchange="renderTabela()" class="w-full border border-gray-200 rounded p-1.5 text-xs text-gray-600 filter-select focus:border-indigo-400">
+                                            <option value="">Todas as Categorias</option>
+                                        </select>
+                                    </th>
+                                    <th class="px-3 py-2">
+                                        <select id="filterTipoCol" onchange="renderTabela()" class="w-full border border-gray-200 rounded p-1.5 text-xs text-gray-600 filter-select focus:border-indigo-400">
+                                            <option value="">Todos (Receitas/Despesas)</option>
+                                            <option value="receita">Receitas (+)</option>
+                                            <option value="despesa">Despesas (-)</option>
+                                        </select>
+                                    </th>
+                                    <th class="px-3 py-2 text-center">
+                                        <button onclick="limparFiltrosTabela()" class="text-indigo-600 hover:text-indigo-800 text-[10px] font-bold uppercase"><i class="fa-solid fa-filter-circle-xmark mr-1"></i> Limpar</button>
+                                    </th>
+                                </tr>
+                            </thead>
+                            <tbody id="tabela-corpo" class="divide-y divide-gray-100 text-sm bg-white"></tbody>
+                        </table>
+                        <div id="tabela-vazia" class="hidden flex flex-col items-center justify-center py-16 text-gray-400">
+                            <i class="fa-solid fa-receipt text-4xl mb-3 opacity-20"></i>
+                            <p>Nenhum lançamento encontrado para estes filtros.</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <!-- MODAL: LANÇAMENTO -->
+    <div id="modalLancamento" class="fixed inset-0 z-50 hidden flex items-center justify-center p-4 modal-overlay">
+        <div class="glass-card modal-content w-full max-w-2xl bg-white shadow-2xl flex flex-col max-h-[95vh]">
+            <div class="flex justify-between items-center p-5 border-b border-gray-100">
+                <h3 class="text-lg font-bold text-gray-800">Registrar Movimentação</h3>
+                <button onclick="closeModal('modalLancamento')" class="text-gray-400 hover:text-gray-600 w-8 h-8 flex items-center justify-center rounded-full hover:bg-gray-100"><i class="fa-solid fa-xmark text-lg"></i></button>
+            </div>
+            <div class="p-6 overflow-y-auto">
+                <form id="formFinancas" class="space-y-5">
+                    <div class="flex p-1 bg-gray-100 rounded-lg">
+                        <label class="flex-1 cursor-pointer">
+                            <input type="radio" name="tipoLancamento" value="despesa" checked class="peer hidden" onchange="atualizarFormUI()">
+                            <div class="text-center py-2 text-sm font-semibold text-gray-500 rounded-md peer-checked:bg-white peer-checked:text-rose-600 peer-checked:shadow-sm transition-all">Despesa</div>
+                        </label>
+                        <label class="flex-1 cursor-pointer">
+                            <input type="radio" name="tipoLancamento" value="receita" class="peer hidden" onchange="atualizarFormUI()">
+                            <div class="text-center py-2 text-sm font-semibold text-gray-500 rounded-md peer-checked:bg-white peer-checked:text-emerald-600 peer-checked:shadow-sm transition-all">Receita</div>
+                        </label>
+                    </div>
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-5">
+                        <div>
+                            <label class="block text-xs font-semibold text-gray-600 mb-1">Membro Responsável</label>
+                            <select id="inputPessoa" required class="w-full border border-gray-300 rounded-lg p-2.5 text-sm bg-gray-50 filter-select"></select>
+                        </div>
+                        <div>
+                            <label class="block text-xs font-semibold text-gray-600 mb-1">Categoria</label>
+                            <select id="inputCategoria" required class="w-full border border-gray-300 rounded-lg p-2.5 text-sm bg-gray-50 filter-select"></select>
+                        </div>
+                    </div>
+                    <div>
+                        <label class="block text-xs font-semibold text-gray-600 mb-1">Descrição</label>
+                        <input type="text" id="inputDesc" required placeholder="Ex: Supermercado..." class="w-full border border-gray-300 rounded-lg p-2.5 text-sm bg-gray-50">
+                    </div>
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-5">
+                        <div>
+                            <label class="block text-xs font-semibold text-gray-600 mb-1">Valor Total (R$)</label>
+                            <input type="number" id="inputValor" step="0.01" min="0.01" required placeholder="0,00" class="w-full border border-gray-300 rounded-lg p-2.5 text-sm font-bold bg-gray-50">
+                        </div>
+                        <div>
+                            <label class="block text-xs font-semibold text-gray-600 mb-1">Data (1ª Parcela)</label>
+                            <input type="date" id="inputData" required class="w-full border border-gray-300 rounded-lg p-2.5 text-sm bg-gray-50">
+                        </div>
+                    </div>
+                    <div id="containerParcelas" class="p-4 bg-gray-50 rounded-lg border border-gray-200">
+                        <label class="block text-xs font-semibold text-gray-600 mb-2">Dividir em Parcelas?</label>
+                        <div class="flex items-center gap-3">
+                            <input type="range" id="rangeParcelas" min="1" max="24" value="1" oninput="document.getElementById('inputParcelas').value = this.value" class="flex-1 accent-indigo-600">
+                            <input type="number" id="inputParcelas" min="1" max="60" value="1" oninput="document.getElementById('rangeParcelas').value = this.value" class="w-16 border border-gray-300 rounded-md p-1.5 text-center text-sm font-bold">
+                            <span class="text-xs text-gray-500 font-medium">meses</span>
+                        </div>
+                    </div>
+                </form>
+            </div>
+            <div class="p-5 border-t border-gray-100 bg-gray-50 rounded-b-xl flex justify-end gap-3">
+                <button type="button" onclick="closeModal('modalLancamento')" class="px-5 py-2.5 rounded-lg text-sm font-semibold text-gray-600 hover:bg-gray-200 transition-colors">Cancelar</button>
+                <button type="submit" form="formFinancas" class="theme-bg text-white px-6 py-2.5 rounded-lg text-sm font-bold shadow-md hover:opacity-90 transition-opacity">Salvar Registro</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL: CONFIGURAÇÕES -->
+    <div id="modalConfig" class="fixed inset-0 z-50 hidden flex items-center justify-center p-4 modal-overlay">
+        <div class="glass-card modal-content w-full max-w-md bg-white shadow-2xl flex flex-col max-h-[95vh]">
+            <div class="flex justify-between items-center p-5 border-b border-gray-100 sticky top-0 bg-white rounded-t-xl z-10">
+                <h3 class="text-lg font-bold text-gray-800"><i class="fa-solid fa-gear text-gray-400 mr-2"></i> Configurações</h3>
+                <button onclick="closeModal('modalConfig')" class="text-gray-400 hover:text-gray-600 w-8 h-8 rounded-full hover:bg-gray-100"><i class="fa-solid fa-xmark"></i></button>
+            </div>
+            
+            <div class="p-6 space-y-6 overflow-y-auto">
+                <!-- Seção 1: Membros (Para Lançamentos) -->
+                <div>
+                    <h4 class="text-sm font-bold text-gray-700 mb-3 border-b pb-1">Membros (Cartão/Despesas)</h4>
+                    <div class="flex gap-2 mb-3">
+                        <input type="text" id="inputNewUser" placeholder="Nome do familiar..." class="flex-1 border border-gray-300 rounded-lg p-2 text-sm bg-gray-50">
+                        <button onclick="addUser()" class="bg-gray-800 text-white px-4 py-2 rounded-lg text-sm font-bold hover:bg-gray-700">Add</button>
+                    </div>
+                    <div id="listaUsuariosConfig" class="space-y-2 max-h-32 overflow-y-auto border border-gray-100 rounded-lg p-2 bg-gray-50"></div>
+                </div>
+
+                <!-- Seção 2: CONTAS DE ACESSO (LOGIN) -->
+                <div>
+                    <h4 class="text-sm font-bold text-indigo-700 mb-3 border-b border-indigo-100 pb-1 flex items-center gap-2">
+                        <i class="fa-solid fa-shield-halved"></i> Contas de Acesso (Login)
+                    </h4>
+                    
+                    <!-- Alterar Minha Senha -->
+                    <div class="bg-indigo-50 p-3 rounded-lg border border-indigo-100 mb-3">
+                        <h5 class="text-xs font-semibold text-indigo-800 mb-2">Alterar Minha Senha</h5>
+                        <div class="flex gap-2 mb-2">
+                            <input type="password" id="oldPass" placeholder="Senha Atual" class="flex-1 border border-gray-300 rounded p-2 text-xs">
+                            <input type="password" id="newPass" placeholder="Nova Senha" class="flex-1 border border-gray-300 rounded p-2 text-xs">
+                        </div>
+                        <button onclick="mudarSenha()" class="w-full bg-indigo-600 text-white px-3 py-2 rounded text-xs font-bold hover:bg-indigo-700">Atualizar Minha Senha</button>
+                    </div>
+
+                    <!-- Criar Novo Usuário de Sistema -->
+                    <div class="bg-gray-50 p-3 rounded-lg border border-gray-200">
+                        <h5 class="text-xs font-semibold text-gray-600 mb-2">Criar Novo Login no Sistema</h5>
+                        <div class="flex gap-2 mb-2">
+                            <input type="text" id="newLoginUser" placeholder="Novo Usuário" class="flex-1 border border-gray-300 rounded p-2 text-xs">
+                            <input type="password" id="newLoginPass" placeholder="Nova Senha" class="flex-1 border border-gray-300 rounded p-2 text-xs">
+                        </div>
+                        <button onclick="criarNovoLogin()" class="w-full bg-gray-800 text-white px-3 py-2 rounded text-xs font-bold hover:bg-gray-700">Cadastrar Login</button>
+                    </div>
+                </div>
+
+                <!-- Seção 3: Tema -->
+                <div>
+                    <h4 class="text-sm font-bold text-gray-700 mb-3 border-b pb-1">Identidade Visual</h4>
+                    <div class="flex justify-between items-center mb-2">
+                        <label class="text-sm text-gray-600">Cor do Tema</label>
+                        <input type="color" id="colorPrimary" onchange="updateTheme()" class="h-8 w-14 rounded cursor-pointer border-none">
+                    </div>
+                    <div class="flex justify-between items-center">
+                        <label class="text-sm text-gray-600">Cor de Fundo</label>
+                        <input type="color" id="colorBg" onchange="updateTheme()" class="h-8 w-14 rounded cursor-pointer border-none">
+                    </div>
+                </div>
+                
+                <!-- Danger Zone -->
+                <div class="pt-4 border-t border-red-100">
+                    <button onclick="limparBancoDados()" class="w-full py-2 bg-red-50 text-red-600 rounded-lg text-sm font-bold hover:bg-red-100 transition-colors">
+                        <i class="fa-solid fa-triangle-exclamation mr-1"></i> Apagar todos os dados
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL DE CONFIRMAÇÃO GENÉRICO -->
+    <div id="modalConfirmAlert" class="fixed inset-0 z-[99999] hidden flex items-center justify-center p-4 modal-overlay">
+        <div class="glass-card modal-content w-full max-w-sm bg-white shadow-2xl flex flex-col overflow-hidden">
+            <div class="p-5 border-b border-gray-100 flex items-center gap-3" id="confirmHeader">
+                <i class="fa-solid fa-circle-question text-indigo-500 text-xl" id="confirmIcon"></i>
+                <h3 class="text-lg font-bold text-gray-800" id="confirmTitle">Confirmação</h3>
+            </div>
+            <div class="p-6 text-gray-600 text-sm font-medium" id="confirmMessage">
+                Deseja continuar?
+            </div>
+            <div class="p-4 bg-gray-50 flex justify-end gap-3 border-t border-gray-100">
+                <button id="btnConfirmCancel" class="px-4 py-2 rounded-lg text-sm font-semibold text-gray-500 hover:bg-gray-200 transition-colors">Cancelar</button>
+                <button id="btnConfirmOk" class="px-4 py-2 rounded-lg text-sm font-bold text-white transition-colors">Confirmar</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- UI Feedback -->
+    <div id="toast" class="fixed bottom-6 right-6 transform translate-y-20 opacity-0 transition-all duration-300 bg-gray-800 text-white px-5 py-3 rounded-xl shadow-xl z-[9999] flex items-center gap-3 text-sm font-medium">
+        <i class="fa-solid fa-circle-check text-green-400"></i>
+        <span id="toastMsg">Sucesso!</span>
+    </div>
+
+    <script>
+        const CONFIG = {
+            db: 'fin_enterprise_data',
+            users: 'fin_enterprise_users',
+            theme: 'fin_enterprise_theme',
+            auth: 'fin_enterprise_auth', // Banco de dados para Logins
+            colors: ['#4f46e5', '#ec4899', '#0ea5e9', '#f59e0b', '#10b981', '#8b5cf6', '#ef4444', '#64748b'],
+            catDespesa: ['Alimentação', 'Moradia', 'Transporte', 'Saúde', 'Lazer', 'Dívidas/Faturas', 'Educação', 'Outros'],
+            catReceita: ['Salário', 'Freelance', 'Investimentos', 'Vendas', 'Outros']
+        };
+
+        // Estado Global
+        let state = {
+            dados: JSON.parse(localStorage.getItem(CONFIG.db)) || [],
+            users: JSON.parse(localStorage.getItem(CONFIG.users)) || ['Matheus', 'Gabriella'],
+            authLogins: JSON.parse(localStorage.getItem(CONFIG.auth)) || [{ user: 'admin', pass: '123' }],
+            theme: JSON.parse(localStorage.getItem(CONFIG.theme)) || { primary: '#4f46e5', bg: '#f8fafc' },
+            charts: { cat: null },
+            currentUser: null // Armazena quem está logado
+        };
+
+        const formatBRL = (v) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(v);
+
+        // Helper para formatar o mês selecionado (Ex: "2026-04" -> "Abr/2026")
+        function formatarMesTexto(yyyy_mm) {
+            if(!yyyy_mm) return "";
+            const [y, m] = yyyy_mm.split('-');
+            const meses = ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez'];
+            return `${meses[parseInt(m)-1]}/${y}`;
+        }
+
+        window.onload = () => {
+            applyTheme();
+            
+            // Verifica se já tem uma sessão ativa no SessionStorage (para não deslogar ao dar F5)
+            const sessionUser = sessionStorage.getItem('fin_logged_in');
+            if (sessionUser) {
+                state.currentUser = sessionUser;
+                iniciarApp();
+            } else {
+                // Garante que a tela de login está visível
+                document.getElementById('view-login').classList.remove('hidden');
+            }
+        };
+
+        // ==========================================
+        // MÓDULO DE AUTENTICAÇÃO (LOGIN / SEGURANÇA)
+        // ==========================================
+
+        function realizarLogin(e) {
+            e.preventDefault();
+            const uInput = document.getElementById('loginUser').value.trim();
+            const pInput = document.getElementById('loginPass').value.trim();
+            
+            // Verifica credenciais
+            const credencialValida = state.authLogins.find(cred => cred.user === uInput && cred.pass === pInput);
+
+            if (credencialValida) {
+                state.currentUser = credencialValida.user;
+                sessionStorage.setItem('fin_logged_in', state.currentUser);
+                document.getElementById('formLogin').reset();
+                document.getElementById('loginError').classList.add('hidden');
+                
+                showToast(`Bem-vindo(a), ${state.currentUser}!`);
+                iniciarApp();
+            } else {
+                document.getElementById('loginError').classList.remove('hidden');
+            }
+        }
+
+        async function realizarLogout() {
+            if(!(await appConfirm("Deseja realmente sair do sistema?", "Sair do Sistema"))) return;
+            sessionStorage.removeItem('fin_logged_in');
+            state.currentUser = null;
+            
+            // Esconde App, Mostra Login
+            document.getElementById('view-main-app').classList.add('hidden');
+            document.getElementById('view-main-app').classList.remove('flex');
+            document.getElementById('view-login').classList.remove('hidden');
+        }
+
+        function iniciarApp() {
+            // Esconde Login, Mostra App
+            document.getElementById('view-login').classList.add('hidden');
+            document.getElementById('view-main-app').classList.remove('hidden');
+            document.getElementById('view-main-app').classList.add('flex');
+
+            // Configurações iniciais do app
+            document.getElementById('inputData').valueAsDate = new Date();
+            const mesAtualInit = new Date().toISOString().split('T')[0].substring(0, 7);
+            document.getElementById('filtroMesDash').value = mesAtualInit;
+            
+            atualizarFormUI();
+            atualizarUI();
+        }
+
+        function criarNovoLogin() {
+            const u = document.getElementById('newLoginUser').value.trim();
+            const p = document.getElementById('newLoginPass').value.trim();
+
+            if(!u || !p) return showToast("Preencha usuário e senha!", true);
+            if(state.authLogins.find(cred => cred.user === u)) return showToast("Erro: Este usuário já existe!", true);
+
+            state.authLogins.push({ user: u, pass: p });
+            localStorage.setItem(CONFIG.auth, JSON.stringify(state.authLogins));
+            
+            document.getElementById('newLoginUser').value = '';
+            document.getElementById('newLoginPass').value = '';
+            showToast("Novo acesso criado com sucesso!");
+        }
+
+        function mudarSenha() {
+            const oldP = document.getElementById('oldPass').value.trim();
+            const newP = document.getElementById('newPass').value.trim();
+
+            if(!oldP || !newP) return showToast("Preencha as senhas!", true);
+
+            const userIndex = state.authLogins.findIndex(cred => cred.user === state.currentUser);
+            
+            if(userIndex !== -1 && state.authLogins[userIndex].pass === oldP) {
+                state.authLogins[userIndex].pass = newP;
+                localStorage.setItem(CONFIG.auth, JSON.stringify(state.authLogins));
+                
+                document.getElementById('oldPass').value = '';
+                document.getElementById('newPass').value = '';
+                showToast("Senha alterada com sucesso!");
+            } else {
+                showToast("Erro: A senha atual informada está incorreta!", true);
+            }
+        }
+
+        // ==========================================
+        // MÓDULO PRINCIPAL DO APLICATIVO
+        // ==========================================
+
+        function atualizarUI() {
+            // Atualiza Select de Lançamento (Membros)
+            const elPessoa = document.getElementById('inputPessoa');
+            if(elPessoa) {
+                const val = elPessoa.value;
+                elPessoa.innerHTML = state.users.map(u => `<option value="${u}">${u}</option>`).join('');
+                if(val && state.users.includes(val)) elPessoa.value = val;
+            }
+
+            // Popula os Selects de Filtros da Tabela
+            const filterMembro = document.getElementById('filterMembroCol');
+            if(filterMembro) {
+                const currentVal = filterMembro.value;
+                filterMembro.innerHTML = '<option value="">Todos os Membros</option>' + state.users.map(u => `<option value="${u}">${u}</option>`).join('');
+                filterMembro.value = currentVal;
+            }
+
+            const filterCat = document.getElementById('filterCategoriaCol');
+            if(filterCat) {
+                const currentVal = filterCat.value;
+                const todasCategorias = [...new Set([...CONFIG.catDespesa, ...CONFIG.catReceita])].sort();
+                filterCat.innerHTML = '<option value="">Todas as Categorias</option>' + todasCategorias.map(c => `<option value="${c}">${c}</option>`).join('');
+                filterCat.value = currentVal;
+            }
+
+            // Atualiza lista de configurações
+            const listaConfig = document.getElementById('listaUsuariosConfig');
+            if (listaConfig) {
+                listaConfig.innerHTML = state.users.map((u, i) => `
+                    <div class="flex justify-between items-center p-2 bg-white rounded border border-gray-100 text-sm">
+                        <div class="flex items-center gap-2">
+                            <div class="w-2 h-2 rounded-full" style="background:${CONFIG.colors[i % CONFIG.colors.length]}"></div>
+                            <span class="font-semibold text-gray-700">${u}</span>
+                        </div>
+                        <button onclick="removeUser('${u}')" class="text-gray-400 hover:text-red-500"><i class="fa-solid fa-trash-can"></i></button>
+                    </div>
+                `).join('');
+            }
+
+            renderDashboard();
+            renderTabela();
+        }
+
+        function applyTheme() {
+            document.documentElement.style.setProperty('--primary', state.theme.primary);
+            document.documentElement.style.setProperty('--bg', state.theme.bg);
+            const cp = document.getElementById('colorPrimary');
+            const cb = document.getElementById('colorBg');
+            if (cp) cp.value = state.theme.primary;
+            if (cb) cb.value = state.theme.bg;
+            localStorage.setItem(CONFIG.theme, JSON.stringify(state.theme));
+        }
+
+        function updateTheme() {
+            state.theme.primary = document.getElementById('colorPrimary').value;
+            state.theme.bg = document.getElementById('colorBg').value;
+            applyTheme();
+        }
+
+        function switchTab(tabId) {
+            ['dashboard', 'lancamentos'].forEach(id => {
+                document.getElementById(`view-${id}`).classList.add('hidden');
+                document.getElementById(`nav-${id}`).classList.remove('active');
+                document.getElementById(`nav-mobile-${id}`).classList.remove('active');
+            });
+            document.getElementById(`view-${tabId}`).classList.remove('hidden');
+            document.getElementById(`nav-${tabId}`).classList.add('active');
+            document.getElementById(`nav-mobile-${tabId}`).classList.add('active');
+            if(tabId === 'dashboard') renderDashboard();
+        }
+
+        function openModal(id) { document.getElementById(id).classList.remove('hidden'); }
+        function closeModal(id) { document.getElementById(id).classList.add('hidden'); }
+        
+        function showToast(msg, isError = false) {
+            const t = document.getElementById('toast');
+            const icon = t.querySelector('i');
+            
+            if(isError) {
+                t.classList.replace('bg-gray-800', 'bg-rose-600');
+                icon.className = "fa-solid fa-circle-exclamation text-white";
+            } else {
+                t.classList.replace('bg-rose-600', 'bg-gray-800');
+                icon.className = "fa-solid fa-circle-check text-green-400";
+            }
+            
+            document.getElementById('toastMsg').textContent = msg;
+            t.classList.remove('translate-y-20', 'opacity-0');
+            setTimeout(() => t.classList.add('translate-y-20', 'opacity-0'), 3000);
+        }
+
+        function appConfirm(msg, title = "Confirmação", isDanger = false) {
+            return new Promise(resolve => {
+                const modal = document.getElementById('modalConfirmAlert');
+                document.getElementById('confirmTitle').textContent = title;
+                document.getElementById('confirmMessage').textContent = msg;
+                
+                const icon = document.getElementById('confirmIcon');
+                icon.className = isDanger ? "fa-solid fa-triangle-exclamation text-rose-500 text-xl" : "fa-solid fa-circle-question text-indigo-500 text-xl";
+                
+                const btnOk = document.getElementById('btnConfirmOk');
+                btnOk.className = isDanger ? "px-4 py-2 rounded-lg text-sm font-bold text-white bg-rose-600 hover:bg-rose-700 transition-colors" : "px-4 py-2 rounded-lg text-sm font-bold text-white bg-indigo-600 hover:bg-indigo-700 transition-colors";
+                
+                modal.classList.remove('hidden');
+                
+                const handleClose = (result) => {
+                    modal.classList.add('hidden');
+                    document.getElementById('btnConfirmOk').onclick = null;
+                    document.getElementById('btnConfirmCancel').onclick = null;
+                    resolve(result);
+                };
+
+                document.getElementById('btnConfirmOk').onclick = () => handleClose(true);
+                document.getElementById('btnConfirmCancel').onclick = () => handleClose(false);
+            });
+        }
+
+        function addUser() {
+            const name = document.getElementById('inputNewUser').value.trim();
+            if(!name || state.users.includes(name)) return;
+            state.users.push(name);
+            localStorage.setItem(CONFIG.users, JSON.stringify(state.users));
+            document.getElementById('inputNewUser').value = '';
+            atualizarUI();
+            showToast("Membro financeiro adicionado!");
+        }
+
+        async function removeUser(name) {
+            if(!(await appConfirm(`Excluir o membro financeiro ${name}?`, "Excluir Membro", true))) return;
+            state.users = state.users.filter(u => u !== name);
+            localStorage.setItem(CONFIG.users, JSON.stringify(state.users));
+            atualizarUI();
+        }
+
+        function renderDashboard() {
+            const hoje = new Date();
+            const dataHojeStr = hoje.toISOString().split('T')[0];
+            
+            // Pega o mês selecionado no input
+            const mesSelecionado = document.getElementById('filtroMesDash').value || dataHojeStr.substring(0, 7);
+            
+            // Atualiza os títulos dos quadros para mostrar o mês selecionado
+            const textoMes = `(${formatarMesTexto(mesSelecionado)})`;
+            document.querySelectorAll('.label-mes-dash').forEach(el => el.textContent = textoMes);
+
+            let saldoReal = 0, receitasMes = 0, despesasMes = 0, dividaFutura = 0;
+            const gastosPessoa = {}, gastosCat = {};
+            state.users.forEach(u => gastosPessoa[u] = 0);
+
+            state.dados.forEach(t => {
+                const val = parseFloat(t.valor);
+                const isPassadoOuHoje = t.data <= dataHojeStr;
+                const isMesSelecionado = t.data.startsWith(mesSelecionado);
+
+                if (t.tipo === 'receita') {
+                    if (isPassadoOuHoje) saldoReal += val; 
+                    if (isMesSelecionado) receitasMes += val; 
+                } else {
+                    if (isPassadoOuHoje) saldoReal -= val; 
+                    else dividaFutura += val; 
+                    
+                    if (isMesSelecionado) { 
+                        despesasMes += val;
+                        if(gastosPessoa[t.pessoa] !== undefined) gastosPessoa[t.pessoa] += val;
+                        gastosCat[t.categoria] = (gastosCat[t.categoria] || 0) + val;
+                    }
+                }
+            });
+
+            const elSaldo = document.getElementById('dash-saldo');
+            elSaldo.textContent = formatBRL(saldoReal);
+            elSaldo.className = saldoReal < 0 ? "text-2xl font-bold text-rose-600" : "text-2xl font-bold text-gray-900";
+            document.getElementById('dash-receitas').textContent = formatBRL(receitasMes);
+            document.getElementById('dash-despesas').textContent = formatBRL(despesasMes);
+            document.getElementById('dash-futuro').textContent = formatBRL(dividaFutura);
+
+            document.getElementById('dash-users').innerHTML = state.users.map((u, i) => `
+                <div class="flex justify-between items-center bg-gray-50 p-3 rounded-lg border border-gray-100">
+                    <div class="flex items-center gap-3">
+                        <div class="w-8 h-8 rounded-full flex items-center justify-center text-white font-bold text-xs shadow-sm" style="background:${CONFIG.colors[i % CONFIG.colors.length]}">
+                            ${u.charAt(0)}
+                        </div>
+                        <span class="font-semibold text-gray-700 text-sm">${u}</span>
+                    </div>
+                    <span class="font-bold text-gray-900">${formatBRL(gastosPessoa[u])}</span>
+                </div>
+            `).join('');
+
+            if(state.charts.cat) state.charts.cat.destroy();
+            const ctx = document.getElementById('chartCategorias');
+            const catLabels = Object.keys(gastosCat);
+            const catData = Object.values(gastosCat);
+
+            state.charts.cat = new Chart(ctx, {
+                type: 'doughnut',
+                data: { labels: catLabels.length ? catLabels : ['Sem dados no mês'], datasets: [{ data: catData.length ? catData : [1], backgroundColor: catData.length ? CONFIG.colors : ['#f1f5f9'], borderWidth: 0 }] },
+                options: { responsive: true, maintainAspectRatio: false, cutout: '75%', plugins: { legend: { position: 'right', labels: { usePointStyle: true, boxWidth: 8, font: { size: 11 } } } } }
+            });
+        }
+
+        function atualizarFormUI() {
+            const isDespesa = document.querySelector('input[name="tipoLancamento"]:checked').value === 'despesa';
+            const cats = isDespesa ? CONFIG.catDespesa : CONFIG.catReceita;
+            document.getElementById('inputCategoria').innerHTML = cats.map(c => `<option value="${c}">${c}</option>`).join('');
+            document.getElementById('containerParcelas').style.opacity = isDespesa ? '1' : '0.4';
+            document.getElementById('containerParcelas').style.pointerEvents = isDespesa ? 'auto' : 'none';
+        }
+
+        document.getElementById('formFinancas').addEventListener('submit', function(e) {
+            e.preventDefault();
+            const tipo = document.querySelector('input[name="tipoLancamento"]:checked').value;
+            const valorTotal = parseFloat(document.getElementById('inputValor').value);
+            const numParcelas = tipo === 'despesa' ? parseInt(document.getElementById('inputParcelas').value) : 1;
+            const dataBase = document.getElementById('inputData').value;
+            const groupId = Date.now().toString();
+            const valorPorParcela = valorTotal / numParcelas;
+
+            for(let i=0; i<numParcelas; i++) {
+                const dateObj = new Date(dataBase + "T12:00:00");
+                dateObj.setMonth(dateObj.getMonth() + i);
+                state.dados.push({
+                    id: crypto.randomUUID(),
+                    groupId: groupId,
+                    pessoa: document.getElementById('inputPessoa').value,
+                    categoria: document.getElementById('inputCategoria').value,
+                    descricao: document.getElementById('inputDesc').value + (numParcelas > 1 ? ` (${i+1}/${numParcelas})` : ''),
+                    valor: valorPorParcela,
+                    data: dateObj.toISOString().split('T')[0],
+                    tipo: tipo
+                });
+            }
+            localStorage.setItem(CONFIG.db, JSON.stringify(state.dados));
+            this.reset();
+            document.getElementById('inputData').valueAsDate = new Date();
+            atualizarFormUI();
+            closeModal('modalLancamento');
+            atualizarUI();
+            showToast("Registro salvo!");
+        });
+
+        function limparFiltrosTabela() {
+            document.getElementById('filtroBusca').value = '';
+            document.getElementById('filterDataCol').value = '';
+            document.getElementById('filterMembroCol').value = '';
+            document.getElementById('filterCategoriaCol').value = '';
+            document.getElementById('filterTipoCol').value = '';
+            renderTabela();
+        }
+
+        function renderTabela() {
+            const corpo = document.getElementById('tabela-corpo');
+            if (!corpo) return;
+            corpo.innerHTML = '';
+
+            const termoBusca = document.getElementById('filtroBusca')?.value.toLowerCase() || '';
+            const filtroData = document.getElementById('filterDataCol')?.value || '';
+            const filtroMembro = document.getElementById('filterMembroCol')?.value || '';
+            const filtroCat = document.getElementById('filterCategoriaCol')?.value || '';
+            const filtroTipo = document.getElementById('filterTipoCol')?.value || '';
+
+            const filtrados = state.dados.filter(t => {
+                const matchBusca = t.descricao.toLowerCase().includes(termoBusca) || 
+                                   t.categoria.toLowerCase().includes(termoBusca) ||
+                                   t.pessoa.toLowerCase().includes(termoBusca);
+                
+                const matchData = filtroData ? t.data.startsWith(filtroData) : true;
+                const matchMembro = filtroMembro ? t.pessoa === filtroMembro : true;
+                const matchCat = filtroCat ? t.categoria === filtroCat : true;
+                const matchTipo = filtroTipo ? t.tipo === filtroTipo : true;
+
+                return matchBusca && matchData && matchMembro && matchCat && matchTipo;
+            }).sort((a,b) => new Date(b.data) - new Date(a.data));
+
+            const hDesc = document.getElementById('historico-desc');
+            if (hDesc) hDesc.innerText = `${filtrados.length} registro(s) encontrado(s)`;
+
+            if(!filtrados.length) {
+                document.getElementById('tabela-vazia').classList.remove('hidden');
+            } else {
+                document.getElementById('tabela-vazia').classList.add('hidden');
+                filtrados.forEach(t => {
+                    const tr = document.createElement('tr');
+                    const corUser = CONFIG.colors[state.users.indexOf(t.pessoa) % CONFIG.colors.length] || '#94a3b8';
+                    tr.className = "hover:bg-indigo-50/30 transition-colors";
+                    tr.innerHTML = `
+                        <td class="px-6 py-4 whitespace-nowrap"><span class="text-xs font-semibold text-gray-600">${t.data.split('-').reverse().join('/')}</span></td>
+                        <td class="px-6 py-4 whitespace-nowrap"><span class="px-2.5 py-1 text-[10px] font-bold rounded-md text-white uppercase tracking-wider" style="background-color: ${corUser}">${t.pessoa}</span></td>
+                        <td class="px-6 py-4"><p class="text-sm font-semibold text-gray-800 truncate max-w-[300px]" title="${t.descricao}">${t.descricao}</p><p class="text-[10px] font-medium text-gray-400 uppercase tracking-widest">${t.categoria}</p></td>
+                        <td class="px-6 py-4 whitespace-nowrap text-right"><span class="text-sm font-bold ${t.tipo === 'despesa' ? 'text-rose-600' : 'text-emerald-600'}">${t.tipo === 'despesa' ? '-' : '+'} ${formatBRL(t.valor)}</span></td>
+                        <td class="px-6 py-4 text-center"><button onclick="deletarItem('${t.id}')" class="text-gray-300 hover:text-rose-500 transition-colors"><i class="fa-solid fa-trash-can"></i></button></td>
+                    `;
+                    corpo.appendChild(tr);
+                });
+            }
+        }
+
+        async function deletarItem(id) {
+            const item = state.dados.find(x => x.id === id);
+            if(!item) return;
+            const grupo = state.dados.filter(x => x.groupId === item.groupId);
+            
+            if(grupo.length > 1) {
+                const excluirTodas = await appConfirm("Este lançamento faz parte de uma compra parcelada. Deseja excluir TODAS as parcelas deste grupo?", "Excluir Lançamento", true);
+                if(excluirTodas) {
+                    state.dados = state.dados.filter(x => x.groupId !== item.groupId);
+                } else {
+                    state.dados = state.dados.filter(x => x.id !== id);
+                }
+            } else {
+                state.dados = state.dados.filter(x => x.id !== id);
+            }
+            
+            localStorage.setItem(CONFIG.db, JSON.stringify(state.dados));
+            atualizarUI();
+        }
+
+        async function limparBancoDados() {
+            if(await appConfirm("ATENÇÃO: Deseja apagar todos os registros do sistema? Esta ação não pode ser desfeita.", "Apagar Banco de Dados", true)) {
+                state.dados = [];
+                localStorage.setItem(CONFIG.db, JSON.stringify(state.dados));
+                atualizarUI();
+            }
+        }
+
+        function calcularStats() {
+            const hoje = new Date().toISOString().split('T')[0];
+            let saldo = 0, divida = 0;
+            state.dados.forEach(t => {
+                const val = parseFloat(t.valor);
+                if (t.tipo === 'receita') {
+                    if (t.data <= hoje) saldo += val;
+                } else {
+                    if (t.data <= hoje) saldo -= val;
+                    else divida += val;
+                }
+            });
+            return { saldo, divida };
+        }
+
+        function exportarRelatorioPDF() {
+            const { jsPDF } = window.jspdf;
+            const doc = new jsPDF('p', 'mm', 'a4');
+            const hexToRgb = hex => {
+                let bigint = parseInt(hex.replace('#',''), 16);
+                return [(bigint >> 16) & 255, (bigint >> 8) & 255, bigint & 255];
+            };
+            const primaryRgb = hexToRgb(state.theme.primary);
+
+            doc.setFillColor(...primaryRgb);
+            doc.rect(0, 0, 210, 25, 'F');
+            doc.setTextColor(255, 255, 255);
+            doc.setFontSize(16);
+            doc.setFont("helvetica", "bold");
+            doc.text("RELATÓRIO FINANCEIRO FAMILIAR", 14, 16);
+
+            doc.setTextColor(80, 80, 80);
+            doc.setFontSize(9);
+            doc.setFont("helvetica", "normal");
+            doc.text(`Data da extração: ${new Date().toLocaleDateString('pt-BR')} por ${state.currentUser}`, 14, 33);
+
+            const stats = calcularStats();
+            doc.setFillColor(245, 247, 250);
+            doc.rect(14, 43, 182, 15, 'F');
+            doc.setFont("helvetica", "bold");
+            doc.text(`Saldo Atual Global: ${formatBRL(stats.saldo)}`, 18, 52);
+            doc.text(`Dívida Futura Global: ${formatBRL(stats.divida)}`, 110, 52);
+
+            const linhas = state.dados
+                .sort((a,b) => new Date(b.data) - new Date(a.data))
+                .map(t => [t.data.split('-').reverse().join('/'), t.pessoa, t.descricao, t.categoria, t.tipo === 'despesa' ? 'Despesa' : 'Receita', formatBRL(t.valor)]);
+
+            doc.autoTable({
+                startY: 65,
+                head: [["Data", "Membro", "Descrição", "Categoria", "Tipo", "Valor"]],
+                body: linhas,
+                headStyles: { fillColor: primaryRgb },
+                columnStyles: { 5: { halign: 'right' } }
+            });
+
+            doc.save(`Relatorio_Financeiro.pdf`);
+            showToast("PDF Gerado com sucesso!");
+        }
+    </script>
+</body>
+</html>
