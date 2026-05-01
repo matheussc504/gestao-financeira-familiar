@@ -8,7 +8,7 @@ Um sistema web completo e moderno para controle financeiro familiar, desenvolvid
 
 ## 🚀 Demonstração
 
-[**Acesse a demonstração ao vivo**]([(https://matheussc504.github.io/gestao-financeira-familiar/])
+[**Acesse a demonstração ao vivo**]([(https://matheussc504.github.io/gestao-financeira-familiar/)]
 
 > **Credenciais de teste:**
 > - Usuário: `admin`
